@@ -34,7 +34,7 @@ const createDatabaseSchema = async () => {
     await sequelize.query(`
       CREATE TABLE roles (
           role_id SERIAL PRIMARY KEY,
-          role_name VARCHAR(50) UNIQUE NOT NULL CHECK (role_name IN ('customer', 'staff', 'admin'))
+          role_name VARCHAR(50) UNIQUE NOT NULL CHECK (role_name IN ('customer', 'admin'))
       );
     `);
 

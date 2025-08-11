@@ -46,14 +46,14 @@ const authController = {
         });
       }
 
-      // Get user role ID (default to 'user' role)
+      // Get customer role ID (default to 'customer' role)
       const Role = require('../models/Role');
-      const userRole = await Role.findOne({ where: { role_name: 'user' } });
+      const customerRole = await Role.findOne({ where: { role_name: 'customer' } });
       
-      if (!userRole) {
+      if (!customerRole) {
         return res.status(500).json({
           success: false,
-          message: 'User role not found in system'
+          message: 'Customer role not found in system'
         });
       }
 
@@ -63,14 +63,14 @@ const authController = {
         password_hash: password, // Use password_hash field
         full_name: `${firstName} ${lastName}`, // Use full_name field
         phone_number: phone, // Use phone_number field
-        role_id: userRole.role_id // Default to user role
+        role_id: customerRole.role_id // Default to customer role
       });
 
       // TODO: Create default notification preferences when model is fixed
       // await UserNotificationPreference.create({ user_id: user.user_id });
 
       // Generate tokens
-      const token = generateToken(user.user_id, 'user');
+      const token = generateToken(user.user_id, 'customer');
       const refreshToken = generateRefreshToken(user.user_id);
 
       // Send welcome email
@@ -140,14 +140,14 @@ const authController = {
       }
 
       // Get user role
-      const userRole = user.role?.role_name || 'user';
+      const userRole = user.role?.role_name || 'customer';
 
       // Generate tokens with actual role
       const token = generateToken(user.user_id, userRole);
       const refreshToken = generateRefreshToken(user.user_id);
 
       // Determine redirect page based on role
-      const redirectPage = userRole === 'admin' ? '/admin/dashboard' : '/user/dashboard';
+      const redirectPage = userRole === 'admin' ? '/admin/dashboard' : '/customer/dashboard';
 
       res.json({
         success: true,
@@ -165,7 +165,7 @@ const authController = {
           refreshToken,
           user_type: userRole,
           redirect_to: redirectPage,
-          permissions: this.getRolePermissions(userRole)
+          permissions: authController.getRolePermissions(userRole)
         }
       });
     } catch (error) {
@@ -181,7 +181,7 @@ const authController = {
   // Get role-based permissions
   getRolePermissions: (role) => {
     const permissions = {
-      user: {
+      customer: {
         can_view_products: true,
         can_create_quotations: true,
         can_view_own_orders: true,

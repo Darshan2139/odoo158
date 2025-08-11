@@ -17,7 +17,7 @@ const seedDatabase = async () => {
     console.log('📝 Seeding roles...');
     await sequelize.query(`
       INSERT INTO roles (role_name) VALUES 
-      ('user'),
+      ('customer'),
       ('admin')
       ON CONFLICT (role_name) DO NOTHING;
     `);
@@ -62,7 +62,7 @@ const seedDatabase = async () => {
     // Get role IDs
     const [roles] = await sequelize.query(`SELECT role_id, role_name FROM roles;`);
     const adminRoleId = roles.find(r => r.role_name === 'admin')?.role_id;
-    const userRoleId = roles.find(r => r.role_name === 'user')?.role_id;
+    const customerRoleId = roles.find(r => r.role_name === 'customer')?.role_id;
 
     // Check if users already exist
     const [existingUsers] = await sequelize.query(`SELECT email FROM users;`);
@@ -76,8 +76,8 @@ const seedDatabase = async () => {
       await sequelize.query(`
         INSERT INTO users (full_name, email, password_hash, phone_number, role_id) VALUES 
         ('Admin User', 'admin@rental.com', '${adminPassword}', '9999999999', ${adminRoleId}),
-        ('John Doe', 'user1@example.com', '${user1Password}', '9876543210', ${userRoleId}),
-        ('Jane Smith', 'user2@example.com', '${user2Password}', '9876543211', ${userRoleId});
+        ('John Doe', 'customer@example.com', '${user1Password}', '9876543210', ${customerRoleId}),
+        ('Jane Smith', 'customer2@example.com', '${user2Password}', '9876543211', ${customerRoleId});
       `);
     } else {
       console.log('   Users already exist, skipping...');

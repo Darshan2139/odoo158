@@ -24,6 +24,7 @@ const reportRoutes = require('./routes/reports');
 const notificationRoutes = require('./routes/notifications');
 const availabilityRoutes = require('./routes/availability');
 const contractRoutes = require('./routes/contracts');
+const paymentGatewayRoutes = require('./routes/paymentGateway');
 const healthController = require('./controllers/healthController');
 
 const app = express();
@@ -75,6 +76,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/contracts', contractRoutes);
+app.use('/api/payment-gateway', paymentGatewayRoutes);
 
 // Health check endpoints
 app.get('/api/health', healthController.healthCheck);
