@@ -215,7 +215,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProduct(id: string): Promise<Product> {
-    const [deleted] = await db.delete(products).where(eq(products.id, id)).returning();
+    // Soft delete: mark product as deleted instead of removing from database
+    const [deleted] = await db.update(products)
+      .set({ 
+        status: 'deleted',
+        availableQuantity: 0,
+        reservedQuantity: 0
+      })
+      .where(eq(products.id, id))
+      .returning();
+    
     if (!deleted) {
       throw new Error("Product not found");
     }
