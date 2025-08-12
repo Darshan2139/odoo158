@@ -661,8 +661,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Creating quotation with data:", JSON.stringify(req.body, null, 2));
       
-      if (!customerId) return res.status(400).json({ message: "customerId is required" });
       if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: "At least one item is required" });
+
+      // Validate all product IDs exist before creating quotation to avoid FK errors
+      const invalidProductIds: string[] = [];
+      for (const it of items) {
+        if (!it?.productId) {
+          invalidProductIds.push('(missing)');
+          continue;
+        }
+        const product = await storage.getProduct(it.productId);
+        if (!product) invalidProductIds.push(it.productId);
+      }
+      if (invalidProductIds.length > 0) {
+        return res.status(400).json({ 
+          message: "One or more product IDs are invalid. Please refresh products and try again.",
+          invalidProductIds
+        });
+      }
+
+      // Resolve/ensure a valid customerId (support guest quotations)
+      let finalCustomerId: string | undefined = customerId;
+      let customerRecord = finalCustomerId ? await storage.getUser(finalCustomerId) : undefined;
+
+      if (!customerRecord) {
+        const email = customerDetails?.email as string | undefined;
+        if (email) {
+          const byEmail = await storage.getUserByEmail(email);
+          if (byEmail) {
+            customerRecord = byEmail;
+            finalCustomerId = byEmail.id;
+          }
+        }
+      }
+
+      if (!customerRecord) {
+        // Create minimal guest customer from provided details
+        const firstName = customerDetails?.firstName || "Guest";
+        const lastName = customerDetails?.lastName || "User";
+        const email = customerDetails?.email || `guest_${Date.now()}@example.com`;
+        const usernameBase = (email.split("@")[0] || "guest").replace(/[^a-zA-Z0-9_\-]/g, "");
+        const username = `${usernameBase}_${Math.random().toString(36).slice(2, 6)}`;
+        const password = require('crypto').randomBytes(8).toString('hex');
+
+        const created = await storage.createUser({
+          username,
+          email,
+          password,
+          firstName,
+          lastName,
+          phone: customerDetails?.phone,
+          address: customerDetails?.address,
+          city: customerDetails?.city,
+          state: customerDetails?.state,
+          pincode: customerDetails?.pincode,
+          role: 'customer',
+        } as any);
+        customerRecord = created;
+        finalCustomerId = created.id;
+      }
 
       // Generate quotation number
       const quotationNumber = `QUO-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
@@ -688,14 +745,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Get start and end dates from first item or use defaults
+      // Get start and end dates from request body if provided, else from first item or defaults
       const firstItem = items[0];
-      const startDate = firstItem?.startDate ? new Date(firstItem.startDate) : new Date();
-      const endDate = firstItem?.endDate ? new Date(firstItem.endDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const startDate = req.body?.startDate
+        ? new Date(req.body.startDate)
+        : (firstItem?.startDate ? new Date(firstItem.startDate) : new Date());
+      const endDate = req.body?.endDate
+        ? new Date(req.body.endDate)
+        : (firstItem?.endDate ? new Date(firstItem.endDate) : new Date(Date.now() + 24 * 60 * 60 * 1000));
 
       const quotationInfo = insertQuotationSchema.parse({
         quotationNumber,
-        customerId,
+        customerId: finalCustomerId!,
         status: 'draft',
         startDate,
         endDate,
@@ -732,8 +793,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(quotation);
     } catch (error: any) {
-      console.error("Quotation creation error:", error);
-      res.status(400).json({ message: error.message });
+      console.error("❌ Quotation creation error:", error);
+      res.status(400).json({ 
+        message: error?.message || 'Quotation creation failed',
+        details: error?.issues || undefined,
+        stack: process.env.NODE_ENV !== 'production' ? error?.stack : undefined
+      });
     }
   });
 
@@ -981,7 +1046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             order_id,
             'unknown', // Customer ID not available in this context
             'pending',
-            'completed',
+            'paid',
             payment
           );
           

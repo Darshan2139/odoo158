@@ -51,7 +51,11 @@ export default function QuotationRequest() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(quotationData),
       });
-      if (!response.ok) throw new Error("Failed to create quotation");
+      if (!response.ok) {
+        let detail = "";
+        try { detail = await response.text(); } catch {}
+        throw new Error(`Failed to create quotation: ${response.status} ${detail}`);
+      }
       return response.json();
     },
     onSuccess: (quotation) => {
